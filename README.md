@@ -7,7 +7,5 @@ Add `https://github.com/t0rn/BandpassFilter` in the [“Swift Package Manager”
 
 ## Usage
 
-<img src="https://github.com/t0rn/BandpassFilter/raw/develop/screenshot1.png">
-
-<img src="https://github.com/t0rn/BandpassFilter/raw/develop/screenshot2.png">
-
+<img src="https://github.com/t0rn/BandpassFilter/raw/main/screenshot1.png">
+<img src="https://github.com/t0rn/BandpassFilter/raw/main/screenshot2.png">
