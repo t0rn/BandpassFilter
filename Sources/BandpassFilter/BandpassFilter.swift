@@ -20,9 +20,15 @@ public final class BandpassFilter {
         self.init(setup: setup)
     }
     
+    public convenience init?(length: Int) {
+        let length = vDSP_Length(length)
+        let log2n = vDSP_Length(ceil(log2(Float(length))))
+        self.init(log2n: log2n)
+    }
+    
     public func filter(
         signal: [Float],
-        sampleRate: Float,
+        sampleRate: Int,
         lowCutoff: Float,
         highCutoff: Float
     ) -> [Float] {
@@ -32,25 +38,10 @@ public final class BandpassFilter {
         var (forwardOutputReal,forwardOutputImag) = forwardFFT(
             signal: signal
         )
-        /*
-        let autospectrum = autoSpectrum(
-            forwardOutputReal: &forwardOutputReal,
-            forwardOutputImag: &forwardOutputImag,
-            halfN: halfN
-        )
-        let components = frequencyAmplitudePairs(
-            autospectrum: autospectrum,
-            n: n
-        )
-        
-        print(components.map {
-            "frequency: \($0.frequency) | amplitude: \(String(format: "%.2f", $0.amplitude))"
-        })
-        */
         
         // Bandpass filtering in frequency domain
         for i in 0..<halfN {
-            let frequency = sampleRate/Float(n) * Float(i)
+            let frequency = Float(sampleRate)/Float(n) * Float(i)
             if frequency < lowCutoff || frequency > highCutoff {
                 forwardOutputReal[i] = 0
                 forwardOutputImag[i] = 0
