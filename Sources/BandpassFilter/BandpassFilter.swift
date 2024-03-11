@@ -4,7 +4,6 @@
 import Foundation
 import Accelerate
 
-//see https://developer.apple.com/documentation/accelerate/finding_the_component_frequencies_in_a_composite_sine_wave#3403296
 public final class BandpassFilter {
     let setup: vDSP.FFT<DSPSplitComplex>
     
@@ -26,26 +25,40 @@ public final class BandpassFilter {
         self.init(log2n: log2n)
     }
     
-    public func filter(
+    public func applyZeroing(
         signal: [Float],
         sampleRate: Int,
         lowCutoff: Float,
         highCutoff: Float
     ) -> [Float] {
         let n = signal.count
-        let halfN = n / 2
-        
-        var (forwardOutputReal,forwardOutputImag) = forwardFFT(
+        let amplificationFactors = Self.zeroingFrequenciesFilter(
+            signalLength: n,
+            lowCutoff: lowCutoff,
+            highCutoff: highCutoff,
+            sampleRate: sampleRate
+        )
+        return apply(
+            amplificationFactors: amplificationFactors,
             signal: signal
         )
-        
-        // Bandpass filtering in frequency domain
+    }
+    
+    public func apply(
+        ///Half N sized array of values to multiply for frequency domain of input signal
+        amplificationFactors: [Float],
+        signal: [Float]
+    ) -> [Float] {
+        let n = signal.count
+        let halfN = n / 2
+        var (forwardOutputReal, forwardOutputImag) = forwardFFT(
+            signal: signal
+        )
+
         for i in 0..<halfN {
-            let frequency = Float(sampleRate)/Float(n) * Float(i)
-            if frequency < lowCutoff || frequency > highCutoff {
-                forwardOutputReal[i] = 0
-                forwardOutputImag[i] = 0
-            }
+            let factor = amplificationFactors[i]
+            forwardOutputReal[i] = forwardOutputReal[i] * factor
+            forwardOutputImag[i] = forwardOutputImag[i] * factor
         }
         
         //recreate signal after filtering
@@ -63,14 +76,22 @@ public final class BandpassFilter {
         let n = signal.count
         let halfN = n / 2
         
-        var forwardInputReal = [Float](repeating: 0,
-                                       count: halfN)
-        var forwardInputImag = [Float](repeating: 0,
-                                       count: halfN)
-        var forwardOutputReal = [Float](repeating: 0,
-                                        count: halfN)
-        var forwardOutputImag = [Float](repeating: 0,
-                                        count: halfN)
+        var forwardInputReal = [Float](
+            repeating: 0,
+            count: halfN
+        )
+        var forwardInputImag = [Float](
+            repeating: 0,
+            count: halfN
+        )
+        var forwardOutputReal = [Float](
+            repeating: 0,
+            count: halfN
+        )
+        var forwardOutputImag = [Float](
+            repeating: 0,
+            count: halfN
+        )
                 
         forwardInputReal.withUnsafeMutableBufferPointer { forwardInputRealPtr in
             forwardInputImag.withUnsafeMutableBufferPointer { forwardInputImagPtr in
@@ -98,7 +119,8 @@ public final class BandpassFilter {
                 }
             }
         }
-        return (realPart: forwardOutputReal, imagPart: forwardOutputImag)
+        return (realPart: forwardOutputReal, 
+                imagPart: forwardOutputImag)
     }
     
     //https://developer.apple.com/documentation/accelerate/finding_the_component_frequencies_in_a_composite_sine_wave#3403296
@@ -143,6 +165,27 @@ public final class BandpassFilter {
         return recreatedSignal
     }
     
+    public func frequencyAmplitudePairs(
+        signal: [Float]
+    ) -> [(frequency: Int, amplitude: Float)] {
+        let n = signal.count
+        let halfN = n / 2
+        
+        var (realPart, imagPart) = forwardFFT(
+            signal: signal
+        )
+        let spectrum = autoSpectrum(
+            forwardOutputReal: &realPart,
+            forwardOutputImag: &imagPart,
+            halfN: halfN
+        )
+        let frequencyAmplitudePairs = frequencyAmplitudePairs(
+            autospectrum: spectrum,
+            n: n
+        )
+        return frequencyAmplitudePairs
+    }
+    
     ///The autospectrum is the sum of squares of the complex and real parts of each complex frequency-domain element.
     public func autoSpectrum(
         forwardOutputReal: inout [Float],
@@ -181,5 +224,51 @@ public final class BandpassFilter {
             }.map { (offset, element) in
                 return (frequency: offset, amplitude: sqrt(element) / Float(n))
             }
+    }
+}
+
+
+extension BandpassFilter {
+    public class func amplificationFactors(
+        inboundFactor: Float,
+        outboundFactor: Float,
+        lowCutoff: Float,
+        highCutoff: Float,
+        n: Int,
+        halfN: Int,
+        sampleRate: Int
+    ) -> [Float] {
+        var result = [Float](
+            repeating: 0,
+            count: halfN
+        )
+        for i in 0..<halfN {
+            let frequency = Float(sampleRate) / Float(n) * Float(i)
+            if frequency < lowCutoff || frequency > highCutoff {
+                result[i] = outboundFactor
+            } else {
+                result[i] = inboundFactor
+            }
+        }
+        return result
+    }
+    
+    public class func zeroingFrequenciesFilter(
+        signalLength: Int,
+        lowCutoff: Float,
+        highCutoff: Float,
+        sampleRate: Int
+    ) -> [Float] {
+        let n = signalLength
+        let halfN = n / 2
+        return Self.amplificationFactors(
+            inboundFactor: 1,
+            outboundFactor: 0,
+            lowCutoff: lowCutoff,
+            highCutoff: highCutoff,
+            n: n,
+            halfN: halfN,
+            sampleRate: sampleRate
+        )
     }
 }

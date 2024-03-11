@@ -43,7 +43,7 @@ func testFilter(
     // Do not forget this factor 2.
     let log2n = vDSP_Length(ceil(log2(Float(length))))
     let filter = BandpassFilter(log2n: log2n)!
-    return filter.filter(
+    return filter.applyZeroing(
         signal: signal,
         sampleRate: sampleRate,
         lowCutoff: lowCutoff,
@@ -51,17 +51,18 @@ func testFilter(
     )
 }
 
-let sevenHz = synthesizeSignal(
+let mySignal = synthesizeSignal(
     nTimes: 4,
     sampleRate: 256,
     frequencyAmplitudePairs: [
         (f: Float(7), a: Float(0.7)),
         (f: Float(1), a: Float(0.7)),
-        (f: Float(100), a: Float(0.7)),
+        (f: Float(50), a: Float(0.7)),
     ]
 )
-sevenHz.map{$0}
-testFilter(signal: sevenHz,
+
+mySignal.map{$0}
+testFilter(signal: mySignal,
            sampleRate: 256,
            lowCutoff: 5,
            highCutoff: 8)
@@ -187,16 +188,3 @@ testFilter(
     highCutoff: 10
 )
 .map{$0}
-
-
-
-extension Array where Element == Float {
-    func isNear(to other: [Float], distance: Float = 0.001) -> Bool {
-        enumerated()
-            .map { (index, element) in
-                abs(element.distance(to: other[index])) < distance
-            }
-            .allSatisfy({$0 == true})
-    }
-}
-resultComplexSignal.isNear(to: sevenHz)
