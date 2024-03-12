@@ -18,11 +18,16 @@ public final class BandpassFilter {
         guard let setup else { return nil }
         self.init(setup: setup)
     }
-    
+    ///Init for power of two length signal otherwise returns nil
     public convenience init?(length: Int) {
         let length = vDSP_Length(length)
-        let log2n = vDSP_Length(ceil(log2(Float(length))))
-        self.init(log2n: log2n)
+        let log2n = log2(Float(length))
+        let rounded = log2n.rounded(.up)
+        if rounded - log2n > 0 {
+            return nil
+        }
+        let n = vDSP_Length(log2n)
+        self.init(log2n: n)
     }
     
     public func applyZeroing(

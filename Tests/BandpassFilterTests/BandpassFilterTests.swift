@@ -30,8 +30,9 @@ final class BandpassFilterTests: XCTestCase {
     }
     
     func testAmplification() throws {
-        let n = 1024
+        let n = 1024 * 4
         let halfN = n / 2
+        let sampleRate = n
         let frequency: Float = 2.0
         let amplitude: Float = 0.2
         let input = SignalGenerator.synthesizeSignal(
@@ -45,7 +46,7 @@ final class BandpassFilterTests: XCTestCase {
         )
         let filter = try XCTUnwrap(
             BandpassFilter(
-                length: input.count
+                length: n
             )
         )
         //filter and double frequency domain components 1...4 range
@@ -57,7 +58,7 @@ final class BandpassFilterTests: XCTestCase {
             highCutoff: 4,
             n: n,
             halfN: halfN,
-            sampleRate: n
+            sampleRate: sampleRate
         )
         let output = filter.apply(
             amplificationFactors: amplification,
